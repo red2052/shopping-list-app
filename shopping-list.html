@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>쇼핑 리스트</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 500px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 24px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 24px;
+            margin-bottom: 8px;
+        }
+
+        .header p {
+            opacity: 0.8;
+            font-size: 14px;
+        }
+
+        .input-section {
+            padding: 20px;
+            border-bottom: 1px solid #eee;
+        }
+
+        .input-wrapper {
+            display: flex;
+            gap: 10px;
+        }
+
+        #itemInput {
+            flex: 1;
+            padding: 12px 16px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+
+        #itemInput:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        #addBtn {
+            padding: 12px 24px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        #addBtn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+
+        #addBtn:active {
+            transform: translateY(0);
+        }
+
+        .list-section {
+            padding: 10px 20px 20px;
+        }
+
+        .shopping-list {
+            list-style: none;
+        }
+
+        .shopping-item {
+            display: flex;
+            align-items: center;
+            padding: 14px;
+            margin: 8px 0;
+            background: #f8f9fa;
+            border-radius: 10px;
+            transition: all 0.3s;
+        }
+
+        .shopping-item:hover {
+            background: #f0f0f0;
+        }
+
+        .shopping-item.checked {
+            background: #e8f5e9;
+        }
+
+        .shopping-item.checked .item-text {
+            text-decoration: line-through;
+            color: #888;
+        }
+
+        .checkbox {
+            width: 24px;
+            height: 24px;
+            border: 2px solid #ccc;
+            border-radius: 50%;
+            margin-right: 14px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s;
+            flex-shrink: 0;
+        }
+
+        .checkbox:hover {
+            border-color: #667eea;
+        }
+
+        .shopping-item.checked .checkbox {
+            background: #4caf50;
+            border-color: #4caf50;
+        }
+
+        .checkbox::after {
+            content: '';
+            width: 10px;
+            height: 6px;
+            border-left: 2px solid white;
+            border-bottom: 2px solid white;
+            transform: rotate(-45deg);
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+
+        .shopping-item.checked .checkbox::after {
+            opacity: 1;
+        }
+
+        .item-text {
+            flex: 1;
+            font-size: 16px;
+            color: #333;
+        }
+
+        .delete-btn {
+            width: 32px;
+            height: 32px;
+            border: none;
+            background: transparent;
+            color: #ff5252;
+            font-size: 20px;
+            cursor: pointer;
+            border-radius: 6px;
+            opacity: 0;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .shopping-item:hover .delete-btn {
+            opacity: 1;
+        }
+
+        .delete-btn:hover {
+            background: #ffebee;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: #999;
+        }
+
+        .empty-state svg {
+            width: 80px;
+            height: 80px;
+            margin-bottom: 16px;
+            opacity: 0.5;
+        }
+
+        .stats {
+            padding: 16px 20px;
+            background: #f8f9fa;
+            display: flex;
+            justify-content: space-between;
+            font-size: 14px;
+            color: #666;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateX(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        .shopping-item {
+            animation: slideIn 0.3s ease;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>쇼핑 리스트</h1>
+            <p>필요한 물건을 추가하세요</p>
+        </div>
+
+        <div class="input-section">
+            <div class="input-wrapper">
+                <input type="text" id="itemInput" placeholder="아이템 입력..." autocomplete="off">
+                <button id="addBtn">추가</button>
+            </div>
+        </div>
+
+        <div class="stats" id="stats">
+            <span>총 <strong id="totalCount">0</strong>개</span>
+            <span>완료 <strong id="checkedCount">0</strong>개</span>
+        </div>
+
+        <div class="list-section">
+            <ul class="shopping-list" id="shoppingList"></ul>
+        </div>
+    </div>
+
+    <script>
+        const itemInput = document.getElementById('itemInput');
+        const addBtn = document.getElementById('addBtn');
+        const shoppingList = document.getElementById('shoppingList');
+        const totalCount = document.getElementById('totalCount');
+        const checkedCount = document.getElementById('checkedCount');
+
+        let items = JSON.parse(localStorage.getItem('shoppingItems')) || [];
+
+        function saveItems() {
+            localStorage.setItem('shoppingItems', JSON.stringify(items));
+        }
+
+        function updateStats() {
+            totalCount.textContent = items.length;
+            checkedCount.textContent = items.filter(item => item.checked).length;
+        }
+
+        function renderList() {
+            if (items.length === 0) {
+                shoppingList.innerHTML = `
+                    <div class="empty-state">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <path d="M2.25 3h1.386c.51 0 .955.343 1.087.835l.383 1.437M7.5 14.25a3 3 0 00-3 3h15.75m-12.75-3h11.218c1.121-2.3 2.1-4.684 2.924-7.138a60.114 60.114 0 00-16.536-1.84M7.5 14.25L5.106 5.272M6 20.25a.75.75 0 11-1.5 0 .75.75 0 011.5 0zm12.75 0a.75.75 0 11-1.5 0 .75.75 0 011.5 0z"/>
+                        </svg>
+                        <p>리스트가 비어있습니다</p>
+                    </div>
+                `;
+            } else {
+                shoppingList.innerHTML = items.map((item, index) => `
+                    <li class="shopping-item ${item.checked ? 'checked' : ''}" data-index="${index}">
+                        <div class="checkbox" onclick="toggleItem(${index})"></div>
+                        <span class="item-text">${escapeHtml(item.text)}</span>
+                        <button class="delete-btn" onclick="deleteItem(${index})">×</button>
+                    </li>
+                `).join('');
+            }
+            updateStats();
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function addItem() {
+            const text = itemInput.value.trim();
+            if (text === '') return;
+
+            items.unshift({ text, checked: false });
+            saveItems();
+            renderList();
+            itemInput.value = '';
+            itemInput.focus();
+        }
+
+        function toggleItem(index) {
+            items[index].checked = !items[index].checked;
+            saveItems();
+            renderList();
+        }
+
+        function deleteItem(index) {
+            items.splice(index, 1);
+            saveItems();
+            renderList();
+        }
+
+        addBtn.addEventListener('click', addItem);
+
+        itemInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                addItem();
+            }
+        });
+
+        renderList();
+    </script>
+</body>
+</html>
