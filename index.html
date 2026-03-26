@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>쇼핑 리스트</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         * {
             margin: 0;
@@ -86,6 +87,12 @@
 
         #addBtn:active {
             transform: translateY(0);
+        }
+
+        #addBtn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
         }
 
         .list-section {
@@ -209,6 +216,29 @@
             color: #666;
         }
 
+        .loading {
+            text-align: center;
+            padding: 40px 20px;
+            color: #666;
+        }
+
+        .loading::after {
+            content: '';
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 2px solid #667eea;
+            border-radius: 50%;
+            border-top-color: transparent;
+            animation: spin 0.8s linear infinite;
+            margin-left: 10px;
+            vertical-align: middle;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
         @keyframes slideIn {
             from {
                 opacity: 0;
@@ -222,6 +252,14 @@
 
         .shopping-item {
             animation: slideIn 0.3s ease;
+        }
+
+        .error-message {
+            background: #ffebee;
+            color: #c62828;
+            padding: 12px 20px;
+            text-align: center;
+            font-size: 14px;
         }
     </style>
 </head>
@@ -245,26 +283,36 @@
         </div>
 
         <div class="list-section">
-            <ul class="shopping-list" id="shoppingList"></ul>
+            <ul class="shopping-list" id="shoppingList">
+                <div class="loading">불러오는 중</div>
+            </ul>
         </div>
     </div>
 
     <script>
+        // Supabase 설정
+        const SUPABASE_URL = 'https://qqvxuujrmtibqeheubol.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFxdnh1dWpybXRpYnFlaGV1Ym9sIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjkwNjc1NTEsImV4cCI6MjA4NDY0MzU1MX0.32sn9MNievYDhHR8cJl5xDztEOz_F-rIQVs9VmOZCcw';
+
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
         const itemInput = document.getElementById('itemInput');
         const addBtn = document.getElementById('addBtn');
         const shoppingList = document.getElementById('shoppingList');
         const totalCount = document.getElementById('totalCount');
         const checkedCount = document.getElementById('checkedCount');
 
-        let items = JSON.parse(localStorage.getItem('shoppingItems')) || [];
-
-        function saveItems() {
-            localStorage.setItem('shoppingItems', JSON.stringify(items));
-        }
+        let items = [];
 
         function updateStats() {
             totalCount.textContent = items.length;
             checkedCount.textContent = items.filter(item => item.checked).length;
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
         }
 
         function renderList() {
@@ -278,44 +326,107 @@
                     </div>
                 `;
             } else {
-                shoppingList.innerHTML = items.map((item, index) => `
-                    <li class="shopping-item ${item.checked ? 'checked' : ''}" data-index="${index}">
-                        <div class="checkbox" onclick="toggleItem(${index})"></div>
+                shoppingList.innerHTML = items.map((item) => `
+                    <li class="shopping-item ${item.checked ? 'checked' : ''}" data-id="${item.id}">
+                        <div class="checkbox" onclick="toggleItem('${item.id}')"></div>
                         <span class="item-text">${escapeHtml(item.text)}</span>
-                        <button class="delete-btn" onclick="deleteItem(${index})">×</button>
+                        <button class="delete-btn" onclick="deleteItem('${item.id}')">×</button>
                     </li>
                 `).join('');
             }
             updateStats();
         }
 
-        function escapeHtml(text) {
-            const div = document.createElement('div');
-            div.textContent = text;
-            return div.innerHTML;
+        function showError(message) {
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'error-message';
+            errorDiv.textContent = message;
+            document.querySelector('.container').insertBefore(errorDiv, document.querySelector('.input-section'));
+            setTimeout(() => errorDiv.remove(), 3000);
         }
 
-        function addItem() {
+        async function loadItems() {
+            try {
+                const { data, error } = await supabase
+                    .from('shopping_items')
+                    .select('*')
+                    .order('created_at', { ascending: false });
+
+                if (error) throw error;
+
+                items = data || [];
+                renderList();
+            } catch (error) {
+                console.error('Error loading items:', error);
+                showError('데이터를 불러오는 데 실패했습니다.');
+                shoppingList.innerHTML = '';
+            }
+        }
+
+        async function addItem() {
             const text = itemInput.value.trim();
             if (text === '') return;
 
-            items.unshift({ text, checked: false });
-            saveItems();
-            renderList();
-            itemInput.value = '';
-            itemInput.focus();
+            addBtn.disabled = true;
+
+            try {
+                const { data, error } = await supabase
+                    .from('shopping_items')
+                    .insert([{ text, checked: false }])
+                    .select()
+                    .single();
+
+                if (error) throw error;
+
+                items.unshift(data);
+                renderList();
+                itemInput.value = '';
+            } catch (error) {
+                console.error('Error adding item:', error);
+                showError('아이템 추가에 실패했습니다.');
+            } finally {
+                addBtn.disabled = false;
+                itemInput.focus();
+            }
         }
 
-        function toggleItem(index) {
-            items[index].checked = !items[index].checked;
-            saveItems();
-            renderList();
+        async function toggleItem(id) {
+            const item = items.find(i => i.id === id);
+            if (!item) return;
+
+            const newChecked = !item.checked;
+
+            try {
+                const { error } = await supabase
+                    .from('shopping_items')
+                    .update({ checked: newChecked })
+                    .eq('id', id);
+
+                if (error) throw error;
+
+                item.checked = newChecked;
+                renderList();
+            } catch (error) {
+                console.error('Error toggling item:', error);
+                showError('상태 변경에 실패했습니다.');
+            }
         }
 
-        function deleteItem(index) {
-            items.splice(index, 1);
-            saveItems();
-            renderList();
+        async function deleteItem(id) {
+            try {
+                const { error } = await supabase
+                    .from('shopping_items')
+                    .delete()
+                    .eq('id', id);
+
+                if (error) throw error;
+
+                items = items.filter(i => i.id !== id);
+                renderList();
+            } catch (error) {
+                console.error('Error deleting item:', error);
+                showError('삭제에 실패했습니다.');
+            }
         }
 
         addBtn.addEventListener('click', addItem);
@@ -326,7 +437,8 @@
             }
         });
 
-        renderList();
+        // 앱 시작 시 데이터 로드
+        loadItems();
     </script>
 </body>
 </html>
